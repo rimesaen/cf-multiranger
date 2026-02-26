@@ -77,7 +77,7 @@ class WallFollowingMultiranger(Node):
         self.wait_for_start = True
         self.start_clock = self.get_clock().now().nanoseconds * 1e-9
         msg = Twist()
-        msg.linear.z = 0.5
+        msg.linear.z = 0.5 # ADD (the height that the drone will be flying)
         self.twist_publisher.publish(msg)
 
     def stop_wall_following_cb(self, request, response):
@@ -114,11 +114,11 @@ class WallFollowingMultiranger(Node):
         actual_yaw_rad = self.angles[2]
 
         # get front and side range in meters
-        right_range = self.ranges[1]
-        front_range = self.ranges[2]
-        left_range = self.ranges[3]
+        right_range = self.ranges[0] #1 ADD CHANGE [0-3]
+        front_range = self.ranges[1] #2
+        left_range = self.ranges[2] #3
 
-        #self.get_logger().info(f"Front range: {front_range}, Right range: {right_range}, Left range: {left_range}")
+        #self.get_logger().info(f"\n\nFront range: {front_range}, \nRight range: {right_range}, \nLeft range: {left_range}")
 
         # choose here the direction that you want the wall following to turn to
         if self.wall_following_direction == 'right':
@@ -134,6 +134,9 @@ class WallFollowingMultiranger(Node):
         if side_range > 0.1:
             velocity_x, velocity_y, yaw_rate, state_wf = self.wall_following.wall_follower(
                 front_range, side_range, actual_yaw_rad, wf_dir, time_now)
+                
+            # ADD TO CHECK DRONE STATE
+            self.get_logger().info(f"Current State: {state_wf.name}")
 
 
 
