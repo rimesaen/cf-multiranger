@@ -80,6 +80,8 @@ class WallFollowingMultiranger(Node):
         msg.linear.z = 0.5 # ADD (the height that the drone will be flying)
         self.twist_publisher.publish(msg)
 
+        self.state = WallFollowing.StateWallFollowing.HOVER
+
     def stop_wall_following_cb(self, request, response):
         self.get_logger().info('Stopping wall following')
         self.timer.cancel()
@@ -132,11 +134,14 @@ class WallFollowingMultiranger(Node):
 
         # get velocity commands and current state from wall following state machine
         if side_range > 0.1:
+            prev_state = self.state
             velocity_x, velocity_y, yaw_rate, state_wf = self.wall_following.wall_follower(
                 front_range, side_range, actual_yaw_rad, wf_dir, time_now)
                 
             # ADD TO CHECK DRONE STATE
-            self.get_logger().info(f"Current State: {state_wf.name}")
+            if prev_state != state_wf:
+                self.get_logger().info(f"Current State: {state_wf.name}")
+                self.state = state_wf
 
 
 

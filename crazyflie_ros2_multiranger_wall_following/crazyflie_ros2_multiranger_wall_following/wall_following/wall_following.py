@@ -253,7 +253,8 @@ class WallFollowing():
             if front_range < self.reference_distance_from_wall + self.ranger_value_buffer:
                 self.state = self.state_transition(self.StateWallFollowing.TURN_TO_FIND_WALL)
         elif self.state == self.StateWallFollowing.HOVER:
-            print('hover')
+            # print('hover')
+            pass
         elif self.state == self.StateWallFollowing.TURN_TO_FIND_WALL:
             # Turn until 45 degrees from wall such that the front and side range sensors
             #   can detect the wall
@@ -375,8 +376,8 @@ class WallFollowing():
     
         if self.has_left_start and distance_to_start < self.start_distance_threshold:
             self.state = self.StateWallFollowing.HOVER
-            print ("\n\n\nEnding exploration\n\n\n")
+            # print ("\n\n\nEnding exploration\n\n\n")
             return 0.0, 0.0, 0.0, self.state
 
-        print(f"x:{command_velocity_x}, y:{command_velocity_y}")
+        # print(f"x:{command_velocity_x}, y:{command_velocity_y}")
         return command_velocity_x, command_velocity_y, command_yaw_rate, self.state
