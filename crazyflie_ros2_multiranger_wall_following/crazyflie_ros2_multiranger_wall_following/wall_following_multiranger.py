@@ -143,13 +143,12 @@ class WallFollowingMultiranger(Node):
         prev_state = self.wall_following.state
         velocity_x, velocity_y, yaw_rate, state_wf = self.wall_following.wall_follower(
             front_range, side_range, actual_yaw_rad, wf_dir, time_now, self.position[0], self.position[1])
-        self.get_logger().info(f"       Front Range: {round(front_range, 3)}, Side Range: {round(side_range, 3)}")
                 
         # print current state
         if prev_state != state_wf:
             self.get_logger().info(f"Current State: {state_wf.name}")
             self.wall_following.state = state_wf
-            
+            self.get_logger().info(f"       Front Range: {round(front_range, 3)}, Side Range: {round(side_range, 3)}")
             if self.wall_following.wall_angle != None:
                 self.get_logger().info(f"       Wall Angle: {round(self.wall_following.wall_angle, 3)}")
             else:

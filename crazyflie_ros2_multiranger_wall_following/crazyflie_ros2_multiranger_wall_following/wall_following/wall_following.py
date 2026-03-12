@@ -258,7 +258,7 @@ class WallFollowing():
                 self.wall_angle = self.wall_following_direction_value * (math.pi/2 - math.atan(side_range / front_range) + self.angle_value_buffer)
                 self.state = self.state_transition(self.StateWallFollowing.TURN_TO_ALIGN_TO_WALL)
             # If went too far in heading and lost the wall, go to find corner.
-            if self.wall_angle != None and front_range < self.reference_distance_from_wall + self.ranger_value_buffer and side_range > self.reference_distance_from_wall + self.range_threshold_lost:
+            elif self.wall_angle != None and front_range < self.reference_distance_from_wall + self.ranger_value_buffer and side_range > self.reference_distance_from_wall + self.range_threshold_lost:
                 self.around_corner_back_track = False
                 self.prev_heading = current_heading
                 self.state = self.state_transition(self.StateWallFollowing.FIND_CORNER)
