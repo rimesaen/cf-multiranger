@@ -145,7 +145,7 @@ class WallFollowing():
         velocity_x = 0.0
         velocity_y = 0.0
         rate_yaw = 0.0
-        return velocity_x, velocity_y, rate_yaw
+        return velocity_y, velocity_x, rate_yaw
 
     def command_forward_along_wall(self, front_range):
         """
@@ -160,9 +160,9 @@ class WallFollowing():
             self.reference_distance_from_wall, front_range, self.ranger_value_buffer)
         if not check_distance_wall:
             if front_range > self.reference_distance_from_wall:
-                velocity_x = -1.0 * self.max_forward_speed / self.speed_redux_straight
-            else:
                 velocity_x = self.max_forward_speed / self.speed_redux_straight
+            else:
+                velocity_x = -1.0 * self.max_forward_speed / self.speed_redux_straight
         #print(f"x : {velocity_y}, y : {-1*velocity_x}")
         return velocity_y, velocity_x
 

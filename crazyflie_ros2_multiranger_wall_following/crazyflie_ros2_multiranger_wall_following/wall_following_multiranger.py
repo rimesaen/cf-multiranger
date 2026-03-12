@@ -148,8 +148,8 @@ class WallFollowingMultiranger(Node):
         if prev_state != state_wf:
             self.get_logger().info(f"Current State: {state_wf.name}")
             self.wall_following.state = state_wf
-            self.get_logger().info(f"       Front Range: {front_range}, Side Range: {side_range}")
-            self.get_logger().info(f"       Distance From Start: {self.wall_following.distance_from_start()}")
+            self.get_logger().info(f"       Front Range: {round(front_range, 3)}, Side Range: {round(side_range, 3)}")
+            self.get_logger().info(f"       Distance From Start: {round(self.wall_following.distance_from_start(), 3)}")
             
 
         msg = Twist()
