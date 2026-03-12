@@ -16,15 +16,15 @@ from enum import Enum
 class WallFollowing():
     class StateWallFollowing(Enum):
         HOVER = 1       # hovering after takeoff
-        FORWARD = 2     # move forward to correct distance from wall
-        BACKWARD = 3    # move backward to correct distance from wall
-        TURN_TO_FIND_WALL = 4
-        TURN_TO_ALIGN_TO_WALL = 5
-        FORWARD_ALONG_WALL = 6
-        ROTATE_OUTER_CORNER = 7
-        ROTATE_INNER_CORNER = 8
+        FORWARD = 2     # move forward to correct distance from the wall
+        BACKWARD = 3    # move backward to correct distance from the wall
+        TURN_TO_FIND_WALL = 4       # turn such that both sensors can detect the same wall (for angle calculation)
+        TURN_TO_ALIGN_TO_WALL = 5   # turn to align to the wall
+        FORWARD_ALONG_WALL = 6      # move forward along the wall
+        ROTATE_OUTER_CORNER = 7     # rotate around an outer corner (convex)
+        ROTATE_INNER_CORNER = 8     # rotate around an inner corner (concave)
         FIND_CORNER = 9
-        STOP = 10       # completed mission
+        STOP = 10       # stopping after completing mission
 
     class WallFollowingDirection(Enum):
         CCW = 1
@@ -37,11 +37,11 @@ class WallFollowing():
                  max_turn_rate=0.5,
                  first_run=True,
                  prev_heading=0.0,
-                 wall_angle=math.pi/2,
+                 wall_angle=None,
                  around_corner_back_track=False,
                  state_start_time=0.0,
                  ranger_value_buffer=0.05,
-                 angle_value_buffer=0.1,
+                 angle_value_buffer=0.02,
                  range_lost_threshold=0.3,
                  in_corner_angle=0.8,
                  wait_for_measurement_seconds=1.0,
@@ -71,10 +71,10 @@ class WallFollowing():
         self.speed_redux_corner = 3.0
         self.speed_redux_straight = 2.0
 
-        self.position_x = position_x
-        self.position_y = position_y
-        self.start_x = None
-        self.start_y = None
+        self.position_x = position_x    # current x position
+        self.position_y = position_y    # current y position
+        self.start_x = None     # starting x position
+        self.start_y = None     # starting y position
         self.exploring = False  # True when has left starting point
 
     # Helper functions
@@ -160,10 +160,9 @@ class WallFollowing():
             self.reference_distance_from_wall, front_range, self.ranger_value_buffer)
         if not check_distance_wall:
             if front_range > self.reference_distance_from_wall:
-                velocity_x = self.max_forward_speed / self.speed_redux_straight
+                velocity_x = self.max_forward_speed / self.speed_redux_straight # move in
             else:
-                velocity_x = -1.0 * self.max_forward_speed / self.speed_redux_straight
-        #print(f"x : {velocity_y}, y : {-1*velocity_x}")
+                velocity_x = -1.0 * self.max_forward_speed / self.speed_redux_straight  # move out
         return velocity_y, velocity_x
 
     def command_turn_around_corner_and_adjust(self, radius, side_range):
@@ -221,7 +220,7 @@ class WallFollowing():
         self.time_now = time_outer_loop
 
         if self.first_run:
-            self.prev_heading = current_heading
+            self.prev_heading = None
             self.around_corner_back_track = False
             self.first_run = False
         
@@ -231,39 +230,35 @@ class WallFollowing():
         # -------------- Handle state transitions ---------------- #
         # assuming that the drone starts off facing and perpendicular to the wall.
         if self.state == self.StateWallFollowing.HOVER:
-            if front_range < self.reference_distance_from_wall + self.ranger_value_buffer:
+            if front_range < self.reference_distance_from_wall - self.ranger_value_buffer:
                 self.state = self.state_transition(self.StateWallFollowing.BACKWARD)
             elif front_range > self.reference_distance_from_wall + self.ranger_value_buffer:
                 self.state = self.state_transition(self.StateWallFollowing.FORWARD)
             else:
-                self.state = self.state_transition(self.StateWallFollowing.FORWARD_ALONG_WALL)
                 self.start_x = self.position_x
                 self.start_y = self.position_y
+                self.state = self.state_transition(self.StateWallFollowing.TURN_TO_FIND_WALL)
         elif self.state == self.StateWallFollowing.FORWARD:
             if front_range < self.reference_distance_from_wall + self.ranger_value_buffer:
-                self.state = self.state_transition(self.StateWallFollowing.FORWARD_ALONG_WALL)
                 self.start_x = self.position_x
                 self.start_y = self.position_y
+                self.state = self.state_transition(self.StateWallFollowing.HOVER)
         elif self.state == self.StateWallFollowing.BACKWARD:
             if front_range > self.reference_distance_from_wall - self.ranger_value_buffer:
-                self.state = self.state_transition(self.StateWallFollowing.FORWARD_ALONG_WALL)
                 self.start_x = self.position_x
                 self.start_y = self.position_y
+                self.state = self.state_transition(self.StateWallFollowing.HOVER)
         elif self.state == self.StateWallFollowing.TURN_TO_FIND_WALL:
-            # Turn until 45 degrees from wall such that the front and side range sensors can detect the wall
-            side_range_check = side_range < (self.reference_distance_from_wall /
-                                             math.cos(math.pi/4) + self.ranger_value_buffer)
-            front_range_check = front_range < (self.reference_distance_from_wall /
-                                               math.cos(math.pi/4) + self.ranger_value_buffer)
+            # Turn until both the front and side range sensors can detect the same wall
+            side_range_check = side_range < (self.reference_distance_from_wall / math.cos(math.pi/4) + self.ranger_value_buffer)
+            front_range_check = front_range < (self.reference_distance_from_wall / math.cos(math.pi/4) + self.ranger_value_buffer)
             if side_range_check and front_range_check:
                 self.prev_heading = current_heading
                 # Calculate the angle to the wall
-                self.wall_angle = self.wall_following_direction_value * \
-                    (math.pi/2 - math.atan(front_range / side_range) + self.angle_value_buffer)
+                self.wall_angle = self.wall_following_direction_value * (math.pi/2 - math.atan(side_range / front_range) + self.angle_value_buffer)
                 self.state = self.state_transition(self.StateWallFollowing.TURN_TO_ALIGN_TO_WALL)
             # If went too far in heading and lost the wall, go to find corner.
-            if front_range < self.reference_distance_from_wall + self.ranger_value_buffer and \
-                    side_range > self.reference_distance_from_wall + self.range_threshold_lost:
+            if self.wall_angle != None and front_range < self.reference_distance_from_wall + self.ranger_value_buffer and side_range > self.reference_distance_from_wall + self.range_threshold_lost:
                 self.around_corner_back_track = False
                 self.prev_heading = current_heading
                 self.state = self.state_transition(self.StateWallFollowing.FIND_CORNER)
@@ -332,8 +327,7 @@ class WallFollowing():
             command_velocity_y_temp, command_velocity_x_temp = self.command_forward_along_wall(front_range)
             command_angle_rate_temp = 0.0
         elif self.state == self.StateWallFollowing.ROTATE_OUTER_CORNER:
-            # If first time around corner
-            #   first try to find the wall again
+            # If first time around corner first try to find the wall again
             # if side range is larger than preffered distance from wall
             if side_range > self.reference_distance_from_wall + self.range_threshold_lost:
                 # check if scanning already occured
