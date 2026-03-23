@@ -53,6 +53,33 @@ def generate_launch_description():
         ]
     )
 
+    simple_mapper2 = Node(
+        package='crazyflie_ros2_multiranger_simple_mapper',
+        executable='simple_mapper_multiranger',
+        name='simple_mapper2',
+        output='screen',
+        parameters=[
+            {'robot_prefix': 'crazyflie2'},
+            {'use_sim_time': True}
+        ]
+    )
+
+    # start a wall following node with a delay of 5 seconds
+    wall_following2 = Node(
+        package='crazyflie_ros2_multiranger_wall_following',
+        executable='wall_following_multiranger',
+        name='wall_following2',
+        output='screen',
+        parameters=[
+            {'robot_prefix': 'crazyflie2'},
+            {'use_sim_time': True},
+            {'delay': 5.0},
+            {'max_turn_rate': 0.7},
+            {'max_forward_speed': 0.5},
+            {'wall_following_direction': 'CCW'}
+        ]
+    )
+
     rviz_config_path = os.path.join(
         get_package_share_directory('crazyflie_ros2_multiranger_bringup'),
         'config',
@@ -73,5 +100,7 @@ def generate_launch_description():
         crazyflie_simulation,
         simple_mapper,
         wall_following,
+        simple_mapper2,
+        wall_following2,
         rviz
         ])
