@@ -19,6 +19,13 @@ from geometry_msgs.msg import Twist
 from tf2_ros import StaticTransformBroadcaster
 from std_srvs.srv import Trigger
 
+##########ADD
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
+import cv2
+import os
+##########ADD END
+
 import tf_transformations
 import math
 import numpy as np
@@ -49,6 +56,20 @@ class WallFollowingMultiranger(Node):
             Odometry, robot_prefix + '/odom', self.odom_subscribe_callback, 10)
         self.ranges_subscriber = self.create_subscription(
             LaserScan, robot_prefix + '/scan', self.scan_subscribe_callback, 10)
+
+        ##########ADD
+        # Subscribe to the camera topic broadcasted by the Gazebo bridge
+        self.camera_subscriber = self.create_subscription(
+            Image, '/camera', self.camera_subscribe_callback, 10)
+        
+        self.bridge = CvBridge()
+        self.latest_image = None
+        self.picture_taken_in_current_state = False
+        
+        # Make sure the directory exists
+        self.image_folder = "./wall_follower_images"
+        os.makedirs(self.image_folder, exist_ok=True)
+        ##########ADD END
 
         # add service to stop wall following and make the crazyflie land
         self.srv = self.create_service(Trigger, robot_prefix + '/stop_wall_following', self.stop_wall_following_cb)
@@ -88,6 +109,17 @@ class WallFollowingMultiranger(Node):
         msg = Twist()
         msg.linear.z = 0.5
         self.twist_publisher.publish(msg)
+
+    ##########ADD
+    def camera_subscribe_callback(self, msg):
+        """
+        Always keep the most recent frame ready for when the drone decides to snap a pic!
+        """
+        try:
+            self.latest_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        except Exception as e:
+            self.get_logger().error(f"Failed to convert image: {e}")
+    ##########ADD END
 
     def stop_wall_following_cb(self, request, response):
         self.get_logger().info('Stopping wall following')
@@ -157,6 +189,28 @@ class WallFollowingMultiranger(Node):
                 self.get_logger().info(f"       Distance From Start: {round(self.wall_following.distance_from_start(), 3)}")
             else:
                 self.get_logger().info(f"       Distance From Start: None")
+
+        ##########ADD
+        # Check if the state machine is telling us to take a picture
+        if state_wf == WallFollowing.StateWallFollowing.TAKE_PICTURE:
+            if not self.picture_taken_in_current_state:
+                if self.latest_image is not None:
+                    # Create the filename based on current pose
+                    filename = f"{self.position[0]:.2f}_{self.position[1]:.2f}_{actual_yaw_rad:.2f}.png"
+                    filepath = os.path.join(self.image_folder, filename)
+                    
+                    # Save the ACTUAL image from Gazebo
+                    cv2.imwrite(filepath, self.latest_image)
+                    self.get_logger().info(f"📷 REAL SNAP! Saved actual camera feed to {filepath}")
+                else:
+                    self.get_logger().warning("📷 Drone wants to take a picture, but the camera feed is empty!")
+                
+                # Make sure we only take one picture per stop
+                self.picture_taken_in_current_state = True
+        else:
+            # Reset the flag when we leave the TAKE_PICTURE state
+            self.picture_taken_in_current_state = False
+        ##########ADD END
 
         msg = Twist()
         msg.linear.x = velocity_x
