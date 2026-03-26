@@ -57,7 +57,6 @@ class WallFollowingMultiranger(Node):
         self.ranges_subscriber = self.create_subscription(
             LaserScan, robot_prefix + '/scan', self.scan_subscribe_callback, 10)
 
-        ##########ADD
         # Subscribe to the camera topic broadcasted by the Gazebo bridge
         self.camera_subscriber = self.create_subscription(
             Image, '/camera', self.camera_subscribe_callback, 10)
@@ -69,7 +68,6 @@ class WallFollowingMultiranger(Node):
         # Make sure the directory exists
         self.image_folder = "./wall_follower_images"
         os.makedirs(self.image_folder, exist_ok=True)
-        ##########ADD END
 
         # add service to stop wall following and make the crazyflie land
         self.srv = self.create_service(Trigger, robot_prefix + '/stop_wall_following', self.stop_wall_following_cb)
@@ -110,7 +108,6 @@ class WallFollowingMultiranger(Node):
         msg.linear.z = 0.5
         self.twist_publisher.publish(msg)
 
-    ##########ADD
     def camera_subscribe_callback(self, msg):
         """
         Always keep the most recent frame ready for when the drone decides to snap a pic!
@@ -119,7 +116,6 @@ class WallFollowingMultiranger(Node):
             self.latest_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         except Exception as e:
             self.get_logger().error(f"Failed to convert image: {e}")
-    ##########ADD END
 
     def stop_wall_following_cb(self, request, response):
         self.get_logger().info('Stopping wall following')
@@ -190,7 +186,6 @@ class WallFollowingMultiranger(Node):
             else:
                 self.get_logger().info(f"       Distance From Start: None")
 
-        ##########ADD
         # Check if the state machine is telling us to take a picture
         if state_wf == WallFollowing.StateWallFollowing.TAKE_PICTURE:
             if not self.picture_taken_in_current_state:
@@ -210,7 +205,6 @@ class WallFollowingMultiranger(Node):
         else:
             # Reset the flag when we leave the TAKE_PICTURE state
             self.picture_taken_in_current_state = False
-        ##########ADD END
 
         msg = Twist()
         msg.linear.x = velocity_x
