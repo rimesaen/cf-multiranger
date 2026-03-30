@@ -49,6 +49,13 @@ class WallFollowingMultiranger(Node):
             Odometry, robot_prefix + '/odom', self.odom_subscribe_callback, 10)
         self.ranges_subscriber = self.create_subscription(
             LaserScan, robot_prefix + '/scan', self.scan_subscribe_callback, 10)
+        
+        if robot_prefix == '/crazyflie':
+            self.partner_odom_subscriber = self.create_subscription(
+                Odometry, '/crazyflie2/odom', self.odom_subscribe_callback, 10)
+        else:
+            self.partner_odom_subscriber = self.create_subscription(
+                Odometry, '/crazyflie/odom', self.odom_subscribe_callback, 10)
 
         # add service to stop wall following and make the crazyflie land
         self.srv = self.create_service(Trigger, robot_prefix + '/stop_wall_following', self.stop_wall_following_cb)
@@ -86,8 +93,9 @@ class WallFollowingMultiranger(Node):
         self.wait_for_start = True
         self.start_clock = self.get_clock().now().nanoseconds * 1e-9
         msg = Twist()
-        msg.linear.z = 0.5
         self.twist_publisher.publish(msg)
+
+        self.partner_position = [0.0, 0.0, 0.0]
 
     def stop_wall_following_cb(self, request, response):
         self.get_logger().info('Stopping wall following')
@@ -142,7 +150,7 @@ class WallFollowingMultiranger(Node):
         # get velocity commands and current state from wall following state machine
         prev_state = self.wall_following.state
         velocity_x, velocity_y, yaw_rate, state_wf = self.wall_following.wall_follower(
-            front_range, side_range, actual_yaw_rad, wf_dir, time_now, self.position[0], self.position[1])
+            front_range, side_range, actual_yaw_rad, wf_dir, time_now, self.position[0], self.position[1], self.partner_position[0], self.partner_position[1])
                 
         # print current state
         if prev_state != state_wf:
@@ -157,6 +165,10 @@ class WallFollowingMultiranger(Node):
                 self.get_logger().info(f"       Distance From Start: {round(self.wall_following.distance_from_start(), 3)}")
             else:
                 self.get_logger().info(f"       Distance From Start: None")
+            if self.wall_following.distance_from_partner() != None:
+                self.get_logger().info(f"       Distance From Partner: {round(self.wall_following.distance_from_partner(), 3)}")
+            else:
+                self.get_logger().info(f"       Distance From Partner: None")
 
         msg = Twist()
         msg.linear.x = velocity_x
@@ -174,6 +186,10 @@ class WallFollowingMultiranger(Node):
         self.angles[1] = euler[1]
         self.angles[2] = euler[2]
         self.position_update = True
+
+        self.partner_position[0] = msg.pose.pose.position.x
+        self.partner_position[1] = msg.pose.pose.position.y
+        self.partner_position[2] = msg.pose.pose.position.z
 
     def scan_subscribe_callback(self, msg):
         self.ranges = msg.ranges

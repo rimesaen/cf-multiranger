@@ -47,7 +47,9 @@ class WallFollowing():
                  wait_for_measurement_seconds=1.0,
                  init_state=StateWallFollowing.HOVER,
                  position_x = 0.0,
-                 position_y = 0.0,):
+                 position_y = 0.0,
+                 partner_position_x = 0.0,
+                 partner_position_y = 0.0):
         """
         __init__ function for the WallFollowing class
         """
@@ -73,9 +75,13 @@ class WallFollowing():
 
         self.position_x = position_x    # current x position
         self.position_y = position_y    # current y position
+
         self.start_x = None     # starting x position
         self.start_y = None     # starting y position
         self.exploring = False  # True when has left starting point
+
+        self.partner_position_x = partner_position_x
+        self.partner_position_y = partner_position_y
 
     # Helper functions
     def value_is_close_to(self, real_value, checked_value, margin):
@@ -105,6 +111,12 @@ class WallFollowing():
         if self.start_x == None:
             return None
         return math.sqrt((self.position_x - self.start_x)**2 + (self.position_y - self.start_y)**2)
+    
+    def distance_from_partner(self):
+        """
+        Get distance from current position to partner's position
+        """
+        return math.sqrt((self.position_x - self.partner_position_x)**2 + (self.position_y - self.partner_position_y)**2)
 
     # Command functions
     def command_turn(self, reference_rate):
@@ -198,7 +210,7 @@ class WallFollowing():
 
     # Wall following State machine
     def wall_follower(self, front_range, side_range, current_heading,
-                      wall_following_direction, time_outer_loop, position_x, position_y):
+                      wall_following_direction, time_outer_loop, position_x, position_y, partner_position_x, partner_position_y):
         """
         wall_follower is the main function of the wall following state machine.
         It takes the current range measurements of the front range and side range
@@ -294,8 +306,9 @@ class WallFollowing():
             distance_from_start = self.distance_from_start()
             if distance_from_start > 0.1:
                 self.exploring = True
-            else:
-                if self.exploring:
+            elif self.exploring:
+                distance_from_partner = self.distance_from_partner()
+                if distance_from_partner < 0.5:
                     self.state = self.state_transition(self.StateWallFollowing.STOP)
 
         # -------------- Handle state actions ---------------- #
