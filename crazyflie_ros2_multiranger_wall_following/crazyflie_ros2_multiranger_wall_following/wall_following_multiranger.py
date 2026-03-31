@@ -93,6 +93,7 @@ class WallFollowingMultiranger(Node):
         self.wait_for_start = True
         self.start_clock = self.get_clock().now().nanoseconds * 1e-9
         msg = Twist()
+        msg.linear.z = 0.5
         self.twist_publisher.publish(msg)
 
         self.partner_position = [0.0, 0.0, 0.0]
@@ -156,6 +157,7 @@ class WallFollowingMultiranger(Node):
         if prev_state != state_wf:
             self.get_logger().info(f"Current State: {state_wf.name}")
             self.wall_following.state = state_wf
+            self.get_logger().info(f"Current Position: ({round(self.position[0], 3)}, {round(self.position[1], 3)})")
             self.get_logger().info(f"       Front Range: {round(front_range, 3)}, Side Range: {round(side_range, 3)}")
             if self.wall_following.wall_angle != None:
                 self.get_logger().info(f"       Wall Angle: {round(self.wall_following.wall_angle, 3)}")
