@@ -50,12 +50,12 @@ class WallFollowingMultiranger(Node):
         self.ranges_subscriber = self.create_subscription(
             LaserScan, robot_prefix + '/scan', self.scan_subscribe_callback, 10)
         
-        if robot_prefix == '/crazyflie':
+        if robot_prefix == 'crazyflie':
             self.partner_odom_subscriber = self.create_subscription(
-                Odometry, '/crazyflie2/odom', self.odom_subscribe_callback, 10)
+                Odometry, '/crazyflie2/odom', self.partner_odom_subscribe_callback, 10)
         else:
             self.partner_odom_subscriber = self.create_subscription(
-                Odometry, '/crazyflie/odom', self.odom_subscribe_callback, 10)
+                Odometry, '/crazyflie/odom', self.partner_odom_subscribe_callback, 10)
 
         # add service to stop wall following and make the crazyflie land
         self.srv = self.create_service(Trigger, robot_prefix + '/stop_wall_following', self.stop_wall_following_cb)
@@ -189,6 +189,7 @@ class WallFollowingMultiranger(Node):
         self.angles[2] = euler[2]
         self.position_update = True
 
+    def partner_odom_subscribe_callback(self, msg):
         self.partner_position[0] = msg.pose.pose.position.x
         self.partner_position[1] = msg.pose.pose.position.y
         self.partner_position[2] = msg.pose.pose.position.z

@@ -238,6 +238,8 @@ class WallFollowing():
         
         self.position_x = position_x
         self.position_y = position_y
+        self.partner_position_x = partner_position_x
+        self.partner_position_y = partner_position_y
 
         # -------------- Handle state transitions ---------------- #
         # assuming that the drone starts off facing and perpendicular to the wall.
@@ -306,10 +308,10 @@ class WallFollowing():
             distance_from_start = self.distance_from_start()
             if distance_from_start > 0.1:
                 self.exploring = True
-            elif self.exploring:
-                distance_from_partner = self.distance_from_partner()
-                if distance_from_partner < 0.5:
-                    self.state = self.state_transition(self.StateWallFollowing.STOP)
+        if self.exploring:
+            distance_from_partner = self.distance_from_partner()
+            if distance_from_partner < 0.5:
+                self.state = self.state_transition(self.StateWallFollowing.STOP)
 
         # -------------- Handle state actions ---------------- #
         # Swithced x and y velocities on all function calls
