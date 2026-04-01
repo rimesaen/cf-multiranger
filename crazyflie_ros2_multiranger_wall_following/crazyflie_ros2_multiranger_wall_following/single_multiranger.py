@@ -78,7 +78,7 @@ class WallFollowingMultiranger(Node):
 
         self.position_update = False
 
-        self.twist_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.twist_publisher = self.create_publisher(Twist, robot_prefix + '/cmd_vel_input', 10)
 
         self.get_logger().info(f"Wall following set for crazyflie " + robot_prefix +
                                f" using the scan topic with a delay of {self.delay} seconds")
