@@ -22,7 +22,7 @@ def generate_launch_description():
     # Setup to launch a crazyflie gazebo simulation from the ros_gz_crazyflie project
     crazyflie_simulation = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(pkg_project_crazyflie_gazebo, 'launch', 'crazyflie_simulation.launch.py'))
+            os.path.join(pkg_project_crazyflie_gazebo, 'launch', 'crazyflie_double_simulation.launch.py'))
     )
 
     # start a simple mapper node
@@ -40,11 +40,38 @@ def generate_launch_description():
     # start a wall following node with a delay of 5 seconds
     wall_following = Node(
         package='crazyflie_ros2_multiranger_wall_following',
-        executable='wall_following_multiranger',
+        executable='double_multiranger',
         name='wall_following',
         output='screen',
         parameters=[
             {'robot_prefix': 'crazyflie'},
+            {'use_sim_time': True},
+            {'delay': 5.0},
+            {'max_turn_rate': 0.7},
+            {'max_forward_speed': 0.5},
+            {'wall_following_direction': 'CCW'}
+        ]
+    )
+
+    simple_mapper2 = Node(
+        package='crazyflie_ros2_multiranger_simple_mapper',
+        executable='simple_mapper_multiranger',
+        name='simple_mapper2',
+        output='screen',
+        parameters=[
+            {'robot_prefix': 'crazyflie2'},
+            {'use_sim_time': True}
+        ]
+    )
+
+    # start a wall following node with a delay of 5 seconds
+    wall_following2 = Node(
+        package='crazyflie_ros2_multiranger_wall_following',
+        executable='double_multiranger',
+        name='wall_following2',
+        output='screen',
+        parameters=[
+            {'robot_prefix': 'crazyflie2'},
             {'use_sim_time': True},
             {'delay': 5.0},
             {'max_turn_rate': 0.7},
@@ -73,5 +100,7 @@ def generate_launch_description():
         crazyflie_simulation,
         simple_mapper,
         wall_following,
+        simple_mapper2,
+        wall_following2,
         rviz
         ])

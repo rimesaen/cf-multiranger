@@ -7,11 +7,11 @@ This is a python port of c-based app layer example from the Crazyflie-firmware
 found here https://github.com/bitcraze/crazyflie-firmware/tree/master/examples/
 demos/app_wall_following_demo
 
-Author:  Kimberly McGuire (Bitcraze AB)
+Author:   Kimberly McGuire (Bitcraze AB)
 """
 import math
 from enum import Enum
-import os # Needed to create the directory for saving images
+
 
 class WallFollowing():
     class StateWallFollowing(Enum):
@@ -25,7 +25,6 @@ class WallFollowing():
         ROTATE_INNER_CORNER = 8     # rotate around an inner corner (concave)
         FIND_CORNER = 9
         STOP = 10       # stopping after completing mission
-        TAKE_PICTURE = 11 # Stabilize and take a picture
 
     class WallFollowingDirection(Enum):
         CCW = 1
@@ -48,7 +47,9 @@ class WallFollowing():
                  wait_for_measurement_seconds=1.0,
                  init_state=StateWallFollowing.HOVER,
                  position_x = 0.0,
-                 position_y = 0.0,):
+                 position_y = 0.0,
+                 partner_position_x = 0.0,
+                 partner_position_y = 0.0):
         """
         __init__ function for the WallFollowing class
         """
@@ -74,15 +75,13 @@ class WallFollowing():
 
         self.position_x = position_x    # current x position
         self.position_y = position_y    # current y position
+
         self.start_x = None     # starting x position
         self.start_y = None     # starting y position
         self.exploring = False  # True when has left starting point
 
-        self.last_pic_x = None         # X position of the last picture taken
-        self.last_pic_y = None         # Y position of the last picture taken
-        self.state_after_picture = None # State to resume after taking a picture
-        self.image_folder = "./wall_follower_images" # Folder to save the images
-        os.makedirs(self.image_folder, exist_ok=True)
+        self.partner_position_x = partner_position_x
+        self.partner_position_y = partner_position_y
 
     # Helper functions
     def value_is_close_to(self, real_value, checked_value, margin):
@@ -112,6 +111,12 @@ class WallFollowing():
         if self.start_x == None:
             return None
         return math.sqrt((self.position_x - self.start_x)**2 + (self.position_y - self.start_y)**2)
+    
+    def distance_from_partner(self):
+        """
+        Get distance from current position to partner's position
+        """
+        return math.sqrt((self.position_x - self.partner_position_x)**2 + (self.position_y - self.partner_position_y)**2)
 
     # Command functions
     def command_turn(self, reference_rate):
@@ -205,7 +210,7 @@ class WallFollowing():
 
     # Wall following State machine
     def wall_follower(self, front_range, side_range, current_heading,
-                      wall_following_direction, time_outer_loop, position_x, position_y):
+                      wall_following_direction, time_outer_loop, position_x, position_y, partner_position_x, partner_position_y):
         """
         wall_follower is the main function of the wall following state machine.
         It takes the current range measurements of the front range and side range
@@ -233,6 +238,8 @@ class WallFollowing():
         
         self.position_x = position_x
         self.position_y = position_y
+        self.partner_position_x = partner_position_x
+        self.partner_position_y = partner_position_y
 
         # -------------- Handle state transitions ---------------- #
         # assuming that the drone starts off facing and perpendicular to the wall.
@@ -273,29 +280,15 @@ class WallFollowing():
             align_wall_check = self.value_is_close_to(
                 self.wrap_to_pi(current_heading - self.prev_heading), self.wall_angle, self.angle_value_buffer)
             if align_wall_check:
-                # Successfully aligned to a wall (either the first time or after a corner).
-                # Go take a picture before proceeding down the wall.
-                self.state_after_picture = self.StateWallFollowing.FORWARD_ALONG_WALL
-                self.state = self.state_transition(self.StateWallFollowing.TAKE_PICTURE)
+                self.state = self.state_transition(self.StateWallFollowing.FORWARD_ALONG_WALL)
         elif self.state == self.StateWallFollowing.FORWARD_ALONG_WALL:
             # if front range is out of reach, then end of the wall is reached
             if front_range > self.reference_distance_from_wall + self.range_threshold_lost:
-                # Corner reached! Take a picture before transitioning to FIND_CORNER
-                self.state_after_picture = self.StateWallFollowing.FIND_CORNER
-                self.state = self.state_transition(self.StateWallFollowing.TAKE_PICTURE)
+                self.state = self.state_transition(self.StateWallFollowing.FIND_CORNER)
             # side range is small, then inner corner is reached
             elif side_range < self.reference_distance_from_wall + self.ranger_value_buffer:
-                # Inner corner reached! Take a picture before transitioning to ROTATE_INNER_CORNER
                 self.prev_heading = current_heading
-                self.state_after_picture = self.StateWallFollowing.ROTATE_INNER_CORNER
-                self.state = self.state_transition(self.StateWallFollowing.TAKE_PICTURE)
-            else:
-                # Still following the wall. Have we moved 0.5m since the last pic?
-                if self.last_pic_x is not None and self.last_pic_y is not None:
-                    dist_since_last_pic = math.sqrt((self.position_x - self.last_pic_x)**2 + (self.position_y - self.last_pic_y)**2)
-                    if dist_since_last_pic >= 0.5:
-                        self.state_after_picture = self.StateWallFollowing.FORWARD_ALONG_WALL
-                        self.state = self.state_transition(self.StateWallFollowing.TAKE_PICTURE)
+                self.state = self.state_transition(self.StateWallFollowing.ROTATE_INNER_CORNER)
         elif self.state == self.StateWallFollowing.ROTATE_OUTER_CORNER:
             if side_range < self.reference_distance_from_wall + self.ranger_value_buffer:
                 self.state = self.state_transition(self.StateWallFollowing.TURN_TO_FIND_WALL)
@@ -308,20 +301,6 @@ class WallFollowing():
         elif self.state == self.StateWallFollowing.FIND_CORNER:
             if front_range <= self.reference_distance_from_wall:
                 self.state = self.state_transition(self.StateWallFollowing.ROTATE_OUTER_CORNER)
-        elif self.state == self.StateWallFollowing.TAKE_PICTURE:
-            # We entered the TAKE_PICTURE state. Hover for 0.5 seconds to stabilize.
-            if self.time_now - self.state_start_time > 0.5:
-                # Format: x_y_yaw.png with 2 decimal places
-                yaw = current_heading
-                filename = f"{self.position_x:.2f}_{self.position_y:.2f}_{yaw:.2f}.png"
-                filepath = os.path.join(self.image_folder, filename)
-                
-                # Update location of last picture
-                self.last_pic_x = self.position_x
-                self.last_pic_y = self.position_y
-                
-                # Resume whatever we were doing before taking the picture
-                self.state = self.state_transition(self.state_after_picture)
         else:
             self.state = self.state_transition(self.StateWallFollowing.STOP)
         
@@ -329,9 +308,10 @@ class WallFollowing():
             distance_from_start = self.distance_from_start()
             if distance_from_start > 0.1:
                 self.exploring = True
-            else:
-                if self.exploring:
-                    self.state = self.state_transition(self.StateWallFollowing.STOP)
+        if self.exploring:
+            distance_from_partner = self.distance_from_partner()
+            if distance_from_partner < 0.5:
+                self.state = self.state_transition(self.StateWallFollowing.STOP)
 
         # -------------- Handle state actions ---------------- #
         # Swithced x and y velocities on all function calls
@@ -393,9 +373,6 @@ class WallFollowing():
             command_velocity_x_temp, command_angle_rate_temp = self.command_align_corner(
                 -1 * self.max_turn_rate, side_range, self.reference_distance_from_wall)
             command_velocity_y_temp = 0.0
-        elif self.state == self.StateWallFollowing.TAKE_PICTURE:
-            # Hover perfectly still while the timer runs down to take the picture
-            command_velocity_y_temp, command_velocity_x_temp, command_angle_rate_temp = self.command_hover()
         elif self.state == self.StateWallFollowing.STOP:
             command_velocity_y_temp, command_velocity_x_temp, command_angle_rate_temp = self.command_hover()
         else:
