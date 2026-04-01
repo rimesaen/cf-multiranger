@@ -40,7 +40,7 @@ def generate_launch_description():
     # start a wall following node with a delay of 5 seconds
     wall_following = Node(
         package='crazyflie_ros2_multiranger_wall_following',
-        executable='single_camera_multiranger',
+        executable='single_multiranger',
         name='wall_following',
         output='screen',
         parameters=[

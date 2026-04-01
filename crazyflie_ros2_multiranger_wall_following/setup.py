@@ -20,7 +20,8 @@ setup(
     license='MIT',
     entry_points={
         'console_scripts': [
-            'wall_following_multiranger = crazyflie_ros2_multiranger_wall_following.wall_following_multiranger:main',
+            'single_multiranger = crazyflie_ros2_multiranger_wall_following.single_multiranger:main',
+            'double_multiranger = crazyflie_ros2_multiranger_wall_following.double_multiranger:main',
         ],
     },
 )

@@ -29,7 +29,7 @@ import os
 import tf_transformations
 import math
 import numpy as np
-from .wall_following.single_camera_following import WallFollowing
+from .wall_following.single_following import WallFollowing
 import time
 
 GLOBAL_SIZE_X = 20.0

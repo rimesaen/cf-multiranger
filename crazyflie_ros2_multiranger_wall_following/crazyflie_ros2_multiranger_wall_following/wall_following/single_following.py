@@ -1,5 +1,5 @@
 """
-file: single_camera_following.py
+file: single_following.py
 
 Class for the wall following demo
 
