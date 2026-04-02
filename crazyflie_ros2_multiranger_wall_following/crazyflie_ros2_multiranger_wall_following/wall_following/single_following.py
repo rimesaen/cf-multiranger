@@ -11,6 +11,7 @@ Author:  Kimberly McGuire (Bitcraze AB)
 """
 import math
 from enum import Enum
+import cv2
 import os # Needed to create the directory for saving images
 
 class WallFollowing():
@@ -48,7 +49,8 @@ class WallFollowing():
                  wait_for_measurement_seconds=1.0,
                  init_state=StateWallFollowing.HOVER,
                  position_x = 0.0,
-                 position_y = 0.0,):
+                 position_y = 0.0,
+                 latest_image = None):
         """
         __init__ function for the WallFollowing class
         """
@@ -82,6 +84,9 @@ class WallFollowing():
         self.last_pic_y = None         # Y position of the last picture taken
         self.state_after_picture = None # State to resume after taking a picture
         self.image_folder = "./wall_follower_images" # Folder to save the images
+        self.picture_taken = False # True if a picture has already been taken in the current state
+        self.latest_image = latest_image # Variable to store the latest image from the camera feed
+
         os.makedirs(self.image_folder, exist_ok=True)
 
     # Helper functions
@@ -205,7 +210,7 @@ class WallFollowing():
 
     # Wall following State machine
     def wall_follower(self, front_range, side_range, current_heading,
-                      wall_following_direction, time_outer_loop, position_x, position_y):
+                      wall_following_direction, time_outer_loop, position_x, position_y, latest_image):
         """
         wall_follower is the main function of the wall following state machine.
         It takes the current range measurements of the front range and side range
@@ -233,6 +238,8 @@ class WallFollowing():
         
         self.position_x = position_x
         self.position_y = position_y
+
+        self.latest_image = latest_image
 
         # -------------- Handle state transitions ---------------- #
         # assuming that the drone starts off facing and perpendicular to the wall.
@@ -309,18 +316,9 @@ class WallFollowing():
             if front_range <= self.reference_distance_from_wall:
                 self.state = self.state_transition(self.StateWallFollowing.ROTATE_OUTER_CORNER)
         elif self.state == self.StateWallFollowing.TAKE_PICTURE:
-            # We entered the TAKE_PICTURE state. Hover for 0.5 seconds to stabilize.
-            if self.time_now - self.state_start_time > 0.5:
-                # Format: x_y_yaw.png with 2 decimal places
-                yaw = current_heading
-                filename = f"{self.position_x:.2f}_{self.position_y:.2f}_{yaw:.2f}.png"
-                filepath = os.path.join(self.image_folder, filename)
-                
-                # Update location of last picture
-                self.last_pic_x = self.position_x
-                self.last_pic_y = self.position_y
-                
+            if self.picture_taken:
                 # Resume whatever we were doing before taking the picture
+                self.picture_taken = False
                 self.state = self.state_transition(self.state_after_picture)
         else:
             self.state = self.state_transition(self.StateWallFollowing.STOP)
@@ -395,7 +393,25 @@ class WallFollowing():
             command_velocity_y_temp = 0.0
         elif self.state == self.StateWallFollowing.TAKE_PICTURE:
             # Hover perfectly still while the timer runs down to take the picture
-            command_velocity_y_temp, command_velocity_x_temp, command_angle_rate_temp = self.command_hover()
+            if self.time_now - self.state_start_time > 0.5:
+                # Format: x_y_yaw.png with 2 decimal places
+                if self.latest_image is not None:
+                    yaw = current_heading
+                    filename = f"{self.position_x:.2f}_{self.position_y:.2f}__{yaw:.2f}.png"
+                    filepath = os.path.join(self.image_folder, filename)
+                    
+                    # Save the ACTUAL image from Gazebo
+                    cv2.imwrite(filepath, self.latest_image)
+                    print(f"📷 REAL SNAP! Saved actual camera feed to {filepath}")
+                    
+                    # Update location of last picture
+                    self.last_pic_x = self.position_x
+                    self.last_pic_y = self.position_y
+                    self.picture_taken = True
+                else:
+                    print("📷 Drone wants to take a picture, but the camera feed is empty!")
+            else:
+                command_velocity_y_temp, command_velocity_x_temp, command_angle_rate_temp = self.command_hover()   
         elif self.state == self.StateWallFollowing.STOP:
             command_velocity_y_temp, command_velocity_x_temp, command_angle_rate_temp = self.command_hover()
         else:

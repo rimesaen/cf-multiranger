@@ -22,7 +22,6 @@ from std_srvs.srv import Trigger
 ##########ADD
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-import cv2
 import os
 ##########ADD END
 
@@ -62,8 +61,6 @@ class WallFollowingMultiranger(Node):
             Image, '/camera', self.camera_subscribe_callback, 10)
         
         self.bridge = CvBridge()
-        self.latest_image = None
-        self.picture_taken_in_current_state = False
         
         # Make sure the directory exists
         self.image_folder = "./wall_follower_images"
@@ -99,7 +96,8 @@ class WallFollowingMultiranger(Node):
                 max_forward_speed=max_forward_speed,
                 init_state=WallFollowing.StateWallFollowing.HOVER,
                 position_x=self.position[0],
-                position_y=self.position[1])
+                position_y=self.position[1],
+                latest_image=None)
 
         # Give a take off command but wait for the delay to start the wall following
         self.wait_for_start = True
@@ -170,7 +168,7 @@ class WallFollowingMultiranger(Node):
         # get velocity commands and current state from wall following state machine
         prev_state = self.wall_following.state
         velocity_x, velocity_y, yaw_rate, state_wf = self.wall_following.wall_follower(
-            front_range, side_range, actual_yaw_rad, wf_dir, time_now, self.position[0], self.position[1])
+            front_range, side_range, actual_yaw_rad, wf_dir, time_now, self.position[0], self.position[1], self.latest_image)
                 
         # print current state
         if prev_state != state_wf:
@@ -185,26 +183,6 @@ class WallFollowingMultiranger(Node):
                 self.get_logger().info(f"       Distance From Start: {round(self.wall_following.distance_from_start(), 3)}")
             else:
                 self.get_logger().info(f"       Distance From Start: None")
-
-        # Check if the state machine is telling us to take a picture
-        if state_wf == WallFollowing.StateWallFollowing.TAKE_PICTURE:
-            if not self.picture_taken_in_current_state:
-                if self.latest_image is not None:
-                    # Create the filename based on current pose
-                    filename = f"{self.position[0]:.2f}_{self.position[1]:.2f}_{actual_yaw_rad:.2f}.png"
-                    filepath = os.path.join(self.image_folder, filename)
-                    
-                    # Save the ACTUAL image from Gazebo
-                    cv2.imwrite(filepath, self.latest_image)
-                    self.get_logger().info(f"📷 REAL SNAP! Saved actual camera feed to {filepath}")
-                else:
-                    self.get_logger().warning("📷 Drone wants to take a picture, but the camera feed is empty!")
-                
-                # Make sure we only take one picture per stop
-                self.picture_taken_in_current_state = True
-        else:
-            # Reset the flag when we leave the TAKE_PICTURE state
-            self.picture_taken_in_current_state = False
 
         msg = Twist()
         msg.linear.x = velocity_x
