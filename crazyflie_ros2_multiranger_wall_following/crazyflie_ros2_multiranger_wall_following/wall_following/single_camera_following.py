@@ -325,7 +325,7 @@ class WallFollowing():
         
         if self.start_x != None:
             distance_from_start = self.distance_from_start()
-            if distance_from_start > 0.1:
+            if distance_from_start > 0.3:
                 self.exploring = True
             else:
                 if self.exploring:

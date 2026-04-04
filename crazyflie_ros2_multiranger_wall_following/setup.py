@@ -23,6 +23,7 @@ setup(
             'single_multiranger = crazyflie_ros2_multiranger_wall_following.single_multiranger:main',
             'single_camera_multiranger = crazyflie_ros2_multiranger_wall_following.single_camera_multiranger:main',
             'double_multiranger = crazyflie_ros2_multiranger_wall_following.double_multiranger:main',
+            'double_camera_multiranger = crazyflie_ros2_multiranger_wall_following.double_camera_multiranger:main'
         ],
     },
 )
