@@ -19,10 +19,14 @@ from geometry_msgs.msg import Twist
 from tf2_ros import StaticTransformBroadcaster
 from std_srvs.srv import Trigger
 
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
+import os
+
 import tf_transformations
 import math
 import numpy as np
-from .wall_following.single_following import WallFollowing
+from .wall_following.single_camera_following import WallFollowing
 import time
 
 GLOBAL_SIZE_X = 20.0
@@ -49,6 +53,16 @@ class WallFollowingMultiranger(Node):
             Odometry, robot_prefix + '/odom', self.odom_subscribe_callback, 10)
         self.ranges_subscriber = self.create_subscription(
             LaserScan, robot_prefix + '/scan', self.scan_subscribe_callback, 10)
+
+        # Subscribe to the camera topic broadcasted by the Gazebo bridge
+        self.camera_subscriber = self.create_subscription(
+            Image, '/camera', self.camera_subscribe_callback, 10)
+        
+        self.bridge = CvBridge()
+        
+        # Make sure the directory exists
+        self.image_folder = "./wall_follower_images"
+        os.makedirs(self.image_folder, exist_ok=True)
 
         # add service to stop wall following and make the crazyflie land
         self.srv = self.create_service(Trigger, robot_prefix + '/stop_wall_following', self.stop_wall_following_cb)
@@ -80,7 +94,8 @@ class WallFollowingMultiranger(Node):
                 max_forward_speed=max_forward_speed,
                 init_state=WallFollowing.StateWallFollowing.HOVER,
                 position_x=self.position[0],
-                position_y=self.position[1])
+                position_y=self.position[1],
+                latest_image=None)
 
         # Give a take off command but wait for the delay to start the wall following
         self.wait_for_start = True
@@ -88,6 +103,17 @@ class WallFollowingMultiranger(Node):
         msg = Twist()
         msg.linear.z = 0.5
         self.twist_publisher.publish(msg)
+
+        self.latest_image = None
+
+    def camera_subscribe_callback(self, msg):
+        """
+        Always keep the most recent frame ready for when the drone decides to snap a pic!
+        """
+        try:
+            self.latest_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        except Exception as e:
+            self.get_logger().error(f"Failed to convert image: {e}")
 
     def stop_wall_following_cb(self, request, response):
         self.get_logger().info('Stopping wall following')
@@ -142,7 +168,7 @@ class WallFollowingMultiranger(Node):
         # get velocity commands and current state from wall following state machine
         prev_state = self.wall_following.state
         velocity_x, velocity_y, yaw_rate, state_wf = self.wall_following.wall_follower(
-            front_range, side_range, actual_yaw_rad, wf_dir, time_now, self.position[0], self.position[1])
+            front_range, side_range, actual_yaw_rad, wf_dir, time_now, self.position[0], self.position[1], self.latest_image)
                 
         # print current state
         if prev_state != state_wf:
