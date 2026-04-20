@@ -22,7 +22,7 @@ def generate_launch_description():
     # Setup to launch a crazyflie gazebo simulation from the ros_gz_crazyflie project
     crazyflie_simulation = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(pkg_project_crazyflie_gazebo, 'launch', 'crazyflie_double_camera_simulation.launch.py'))
+            os.path.join(pkg_project_crazyflie_gazebo, 'launch', 'crazyflie_quadruple_camera_simulation.launch.py'))
     )
 
     # start a simple mapper node
@@ -79,6 +79,58 @@ def generate_launch_description():
         ]
     )
 
+    simple_mapper3 = Node(
+        package='crazyflie_ros2_multiranger_simple_mapper',
+        executable='simple_mapper_multiranger',
+        name='simple_mapper3',
+        output='screen',
+        parameters=[
+            {'robot_prefix': 'crazyflie3'},
+            {'use_sim_time': True}
+        ]
+    )
+    
+    wall_following3 = Node(
+        package='crazyflie_ros2_multiranger_wall_following',
+        executable='multiple_camera_multiranger',
+        name='wall_following3',
+        output='screen',
+        parameters=[
+            {'robot_prefix': 'crazyflie3'},
+            {'use_sim_time': True},
+            {'delay': 5.0},
+            {'max_turn_rate': 0.7},
+            {'max_forward_speed': 0.5},
+            {'wall_following_direction': 'CCW'}
+        ]
+    )
+
+    simple_mapper4 = Node(
+        package='crazyflie_ros2_multiranger_simple_mapper',
+        executable='simple_mapper_multiranger',
+        name='simple_mapper4',
+        output='screen',
+        parameters=[
+            {'robot_prefix': 'crazyflie4'},
+            {'use_sim_time': True}
+        ]
+    )
+    
+    wall_following4 = Node(
+        package='crazyflie_ros2_multiranger_wall_following',
+        executable='multiple_camera_multiranger',
+        name='wall_following4',
+        output='screen',
+        parameters=[
+            {'robot_prefix': 'crazyflie4'},
+            {'use_sim_time': True},
+            {'delay': 5.0},
+            {'max_turn_rate': 0.7},
+            {'max_forward_speed': 0.5},
+            {'wall_following_direction': 'CW'}
+        ]
+    )
+
     rviz_config_path = os.path.join(
         get_package_share_directory('crazyflie_ros2_multiranger_bringup'),
         'config',
@@ -101,5 +153,9 @@ def generate_launch_description():
         wall_following,
         simple_mapper2,
         wall_following2,
+        simple_mapper3,
+        wall_following3,
+        simple_mapper4,
+        wall_following4,
         rviz
         ])

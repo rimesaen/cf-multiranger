@@ -50,6 +50,7 @@ class WallFollowing():
                  init_state=StateWallFollowing.HOVER,
                  position_x = 0.0,
                  position_y = 0.0,
+                 position_z = 0.0,
                  partner_position_x = 0.0,
                  partner_position_y = 0.0,
                  latest_image = None,
@@ -79,6 +80,7 @@ class WallFollowing():
 
         self.position_x = position_x    # current x position
         self.position_y = position_y    # current y position
+        self.position_z = position_z    # current z position
         self.start_x = None     # starting x position
         self.start_y = None     # starting y position
         self.exploring = False  # True when has left starting point
@@ -222,7 +224,7 @@ class WallFollowing():
 
     # Wall following State machine
     def wall_follower(self, front_range, side_range, current_heading,
-                      wall_following_direction, time_outer_loop, position_x, position_y, partner_position_x, partner_position_y, latest_image):
+                      wall_following_direction, time_outer_loop, position_x, position_y, position_z, partner_position_x, partner_position_y, latest_image):
         """
         wall_follower is the main function of the wall following state machine.
         It takes the current range measurements of the front range and side range
@@ -250,6 +252,7 @@ class WallFollowing():
         
         self.position_x = position_x
         self.position_y = position_y
+        self.position_z = position_z
         self.partner_position_x = partner_position_x
         self.partner_position_y = partner_position_y
 
@@ -409,10 +412,10 @@ class WallFollowing():
         elif self.state == self.StateWallFollowing.TAKE_PICTURE:
             # Hover perfectly still while the timer runs down to take the picture
             if self.time_now - self.state_start_time > 0.5:
-                # Format: x_y_yaw.png with 2 decimal places
+                # Format: x_y_z_yaw.png with 2 decimal places
                 if self.latest_image is not None:
                     yaw = current_heading
-                    filename = f"{self.position_x:.2f}_{self.position_y:.2f}__{yaw:.2f}.png"
+                    filename = f"{self.position_x:.2f}_{self.position_y:.2f}_{self.position_z:.2f}_{yaw:.2f}.png"
                     filepath = os.path.join(self.image_folder, filename)
                     
                     # Save the ACTUAL image from Gazebo

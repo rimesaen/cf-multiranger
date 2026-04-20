@@ -64,9 +64,15 @@ class WallFollowingMultiranger(Node):
         if robot_prefix == 'crazyflie':
             self.partner_odom_subscriber = self.create_subscription(
                 Odometry, '/crazyflie2/odom', self.partner_odom_subscribe_callback, 10)
-        else:
+        elif robot_prefix == 'crazyflie2':
             self.partner_odom_subscriber = self.create_subscription(
                 Odometry, '/crazyflie/odom', self.partner_odom_subscribe_callback, 10)
+        elif robot_prefix == 'crazyflie3':
+            self.partner_odom_subscriber = self.create_subscription(
+                Odometry, '/crazyflie4/odom', self.partner_odom_subscribe_callback, 10)
+        else:
+            self.partner_odom_subscriber = self.create_subscription(
+                Odometry, '/crazyflie3/odom', self.partner_odom_subscribe_callback, 10)
 
         # add service to stop wall following and make the crazyflie land
         self.srv = self.create_service(Trigger, robot_prefix + '/stop_wall_following', self.stop_wall_following_cb)
@@ -101,6 +107,7 @@ class WallFollowingMultiranger(Node):
                 init_state=WallFollowing.StateWallFollowing.HOVER,
                 position_x=self.position[0],
                 position_y=self.position[1],
+                position_z=self.position[2],
                 partner_position_x=self.partner_position[0],
                 partner_position_y=self.partner_position[1],
                 latest_image=None,
@@ -175,13 +182,13 @@ class WallFollowingMultiranger(Node):
         # get velocity commands and current state from wall following state machine
         prev_state = self.wall_following.state
         velocity_x, velocity_y, yaw_rate, state_wf = self.wall_following.wall_follower(
-            front_range, side_range, actual_yaw_rad, wf_dir, time_now, self.position[0], self.position[1], self.partner_position[0], self.partner_position[1], self.latest_image)
+            front_range, side_range, actual_yaw_rad, wf_dir, time_now, self.position[0], self.position[1], self.position[2], self.partner_position[0], self.partner_position[1], self.latest_image)
                 
         # print current state
         if prev_state != state_wf:
             self.get_logger().info(f"Current State: {state_wf.name}")
             self.wall_following.state = state_wf
-            self.get_logger().info(f"Current Position: ({round(self.position[0], 3)}, {round(self.position[1], 3)})")
+            self.get_logger().info(f"Current Position: ({round(self.position[0], 3)}, {round(self.position[1], 3)}, {round(self.position[2], 3)})")
             self.get_logger().info(f"       Front Range: {round(front_range, 3)}, Side Range: {round(side_range, 3)}")
             if self.wall_following.wall_angle != None:
                 self.get_logger().info(f"       Wall Angle: {round(self.wall_following.wall_angle, 3)}")
